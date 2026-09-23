@@ -1,4 +1,76 @@
 import { execFileSync } from 'node:child_process';
+import dns from 'node:dns';
+import net from 'node:net';
+
+/**
+ * Comprueba si el host de la base de datos resuelve y acepta conexiones.
+ *
+ * Distingue dos fallos que Prisma reporta igual (P1001): que el nombre no se
+ * resuelva (DNS) o que resuelva pero el puerto no responda (servicio caído o
+ * red no disponible todavía).
+ */
+async function probeDatabaseHost(): Promise<boolean> {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return false;
+
+  let host: string;
+  let port: number;
+  try {
+    const url = new URL(raw);
+    host = url.hostname;
+    port = Number(url.port || 5432);
+  } catch {
+    console.error('  DATABASE_URL no tiene formato de URL válida');
+    return false;
+  }
+
+  try {
+    const addresses = await dns.promises.lookup(host, { all: true });
+    console.log(
+      `  DNS de ${host}: ${addresses.map((a) => `${a.address} (IPv${a.family})`).join(', ')}`,
+    );
+  } catch (error) {
+    console.error(`  DNS de ${host}: NO RESUELVE (${(error as Error).message})`);
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port, timeout: 5000 });
+    socket.on('connect', () => {
+      console.log(`  Conexión TCP a ${host}:${port}: correcta`);
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('timeout', () => {
+      console.error(`  Conexión TCP a ${host}:${port}: agotó el tiempo de espera`);
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('error', (error) => {
+      console.error(`  Conexión TCP a ${host}:${port}: ${error.message}`);
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * Espera a que la base de datos acepte conexiones.
+ *
+ * La red privada de Railway no está disponible en el instante en que arranca el
+ * contenedor, así que intentar migrar de inmediato puede fallar aunque todo esté
+ * bien configurado.
+ */
+export async function waitForDatabase(attempts = 10, delayMs = 3000): Promise<void> {
+  for (let i = 1; i <= attempts; i += 1) {
+    console.log(`Comprobando la base de datos (intento ${i} de ${attempts})…`);
+    if (await probeDatabaseHost()) return;
+    if (i < attempts) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  throw new Error(
+    'La base de datos no responde tras varios intentos. ' +
+      'Si el host termina en .railway.internal, prueba con el valor de DATABASE_PUBLIC_URL.',
+  );
+}
 
 /**
  * Diagnóstico de arranque.

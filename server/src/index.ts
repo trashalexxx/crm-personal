@@ -1,5 +1,5 @@
 import os from 'node:os';
-import { reportEnvironment, runMigrations } from './startup';
+import { reportEnvironment, runMigrations, waitForDatabase } from './startup';
 
 // El diagnóstico va antes de importar ./env, que aborta el proceso si falta
 // configuración: así el log explica qué falta en vez de morir en silencio.
@@ -21,7 +21,10 @@ function localAddresses(): string[] {
 async function main() {
   // En producción las migraciones se aplican al arrancar, ya con la
   // configuración validada y con mensajes legibles si algo falla.
-  if (env.isProduction) runMigrations();
+  if (env.isProduction) {
+    await waitForDatabase();
+    runMigrations();
+  }
 
   // Falla pronto si la base de datos no está accesible.
   await prisma.$connect();
