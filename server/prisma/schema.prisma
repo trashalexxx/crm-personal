@@ -1,0 +1,296 @@
+// Modelo de datos del CRM personal.
+// Los "enum" se guardan como texto y se validan con Zod (src/lib/enums.ts): se mantuvo
+// así al migrar de SQLite a PostgreSQL para no romper los datos ya existentes.
+// Los importes se guardan en céntimos (Int) para evitar errores de redondeo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  currency     String   @default("EUR")
+  locale       String   @default("es-ES")
+  theme        String   @default("system")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contacts   Contact[]
+  tags       Tag[]
+  stages     Stage[]
+  deals      Deal[]
+  tasks      Task[]
+  activities Activity[]
+  events     Event[]
+  projects   Project[]
+  quotes     Quote[]
+  documents  Document[]
+}
+
+model Contact {
+  id        String  @id @default(cuid())
+  userId    String
+  firstName String
+  lastName  String?
+  email     String?
+  phone     String?
+  company   String?
+  position  String?
+  website   String?
+  linkedin  String?
+  twitter   String?
+  instagram String?
+  address   String?
+  city      String?
+  country   String?
+  // LEAD | ACTIVE | RECURRING | INACTIVE
+  status    String  @default("LEAD")
+  source    String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags       Tag[]      @relation("ContactTags")
+  deals      Deal[]
+  tasks      Task[]
+  activities Activity[]
+  events     Event[]
+  projects   Project[]
+  quotes     Quote[]
+  documents  Document[]
+
+  @@index([userId, status])
+  @@index([userId, lastName])
+}
+
+model Tag {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  color  String @default("#6366f1")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts Contact[] @relation("ContactTags")
+
+  @@unique([userId, name])
+}
+
+model Stage {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  position    Int     @default(0)
+  probability Int     @default(50)
+  color       String  @default("#6366f1")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deals Deal[]
+
+  @@index([userId, position])
+}
+
+model Deal {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  contactId   String?
+  stageId     String
+  amountCents Int     @default(0)
+  currency    String  @default("EUR")
+  // OPEN | WON | LOST
+  status      String  @default("OPEN")
+  lostReason  String?
+  position    Int     @default(0)
+
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  stage      Stage      @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  tasks      Task[]
+  activities Activity[]
+  quotes     Quote[]
+  documents  Document[]
+
+  @@index([userId, status])
+  @@index([userId, stageId])
+}
+
+model Task {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  // LOW | MEDIUM | HIGH | URGENT
+  priority    String  @default("MEDIUM")
+  // PENDING | IN_PROGRESS | DONE | CANCELLED
+  status      String  @default("PENDING")
+
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contactId String?
+  dealId    String?
+  projectId String?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  deal    Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, dueDate])
+}
+
+model Activity {
+  id      String @id @default(cuid())
+  userId  String
+  // NOTE | CALL | MEETING | EMAIL | WHATSAPP | OTHER
+  type    String @default("NOTE")
+  subject String
+  content String?
+
+  occurredAt  DateTime @default(now())
+  durationMin Int?
+  createdAt   DateTime @default(now())
+
+  contactId String?
+  dealId    String?
+  projectId String?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  deal    Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, occurredAt])
+}
+
+model Event {
+  id          String  @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  location    String?
+  // MEETING | CALL | FOLLOW_UP | DEADLINE | OTHER
+  type        String  @default("MEETING")
+
+  startsAt DateTime
+  endsAt   DateTime?
+  allDay   Boolean   @default(false)
+
+  contactId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startsAt])
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  // PLANNED | ACTIVE | ON_HOLD | COMPLETED | CANCELLED
+  status      String  @default("PLANNED")
+  progress    Int     @default(0)
+  contactId   String?
+
+  startDate DateTime?
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  tasks      Task[]
+  activities Activity[]
+  documents  Document[]
+
+  @@index([userId, status])
+}
+
+model Quote {
+  id          String  @id @default(cuid())
+  userId      String
+  number      String
+  title       String
+  notes       String?
+  // DRAFT | SENT | APPROVED | REJECTED | EXPIRED
+  status      String  @default("DRAFT")
+  currency    String  @default("EUR")
+  taxPercent  Int     @default(0)
+  contactId   String?
+  dealId      String?
+
+  issueDate  DateTime  @default(now())
+  validUntil DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact   Contact?    @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  deal      Deal?       @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  items     QuoteItem[]
+  documents Document[]
+
+  @@unique([userId, number])
+  @@index([userId, status])
+}
+
+model QuoteItem {
+  id             String @id @default(cuid())
+  quoteId        String
+  description    String
+  quantity       Float  @default(1)
+  unitPriceCents Int    @default(0)
+  position       Int    @default(0)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+model Document {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  url         String
+  description String?
+  // CONTRACT | PROPOSAL | INVOICE | MATERIAL | OTHER
+  type        String  @default("OTHER")
+
+  contactId String?
+  dealId    String?
+  projectId String?
+  quoteId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  deal    Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  quote   Quote?   @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  @@index([userId, type])
+}

@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  /* Fondo oscuro con un halo rojo muy tenue: da profundidad sin distraer. */
+  body.dark,
+  .dark body {
+    background-image:
+      radial-gradient(60rem 40rem at 15% -10%, rgb(208 18 40 / 0.10), transparent 60%),
+      radial-gradient(45rem 30rem at 100% 0%, rgb(208 18 40 / 0.05), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-brand-500/30;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+  }
+
+  /* Casillas y deslizadores heredan el rojo de marca. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    @apply text-brand-600 focus:ring-brand-500;
+  }
+  input[type='range'] {
+    accent-color: theme('colors.brand.600');
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-card transition-colors
+      dark:border-white/[0.07] dark:bg-slate-900/70 dark:shadow-card-dark dark:backdrop-blur-sm;
+  }
+
+  /* Tarjeta que responde al puntero: para listas y elementos navegables. */
+  .card-interactive {
+    @apply card hover:border-slate-300 hover:shadow-md dark:hover:border-brand-500/40;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
+      placeholder:text-slate-400 transition-colors
+      focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
+      disabled:cursor-not-allowed disabled:bg-slate-100
+      dark:border-white/10 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500
+      dark:focus:border-brand-500 dark:disabled:bg-slate-900;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400;
+  }
+
+  /* Franja roja vertical que marca el elemento activo en la navegación. */
+  .nav-active-bar {
+    @apply absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand-500;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.slate.300') transparent;
+  }
+  .dark .scrollbar-thin {
+    scrollbar-color: theme('colors.slate.700') transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-300 dark:bg-slate-700;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-600;
+  }
+}

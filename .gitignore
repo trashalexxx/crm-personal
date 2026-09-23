@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+
+# Secretos: la clave de firma de sesión vive aquí
+.env
+.env.local
+.env.*.local
+
+# Bases de datos locales: contienen datos personales
+server/prisma/*.db
+server/prisma/*.db-journal
+
+# Cachés de compilación
+*.tsbuildinfo
