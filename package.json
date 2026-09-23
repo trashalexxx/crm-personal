@@ -7,8 +7,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "//": "Un solo servicio sirve la API y la interfaz compilada. Railway ejecuta build y luego start.",
-    "build": "npm --prefix server ci && npm --prefix web ci && npm --prefix web run build && npm --prefix server run build",
+    "//": "Un solo servicio sirve la API y la interfaz. --include=dev es obligatorio: con NODE_ENV=production npm omitiria tsc y vite, y el build fallaria.",
+    "build": "npm --prefix server ci --include=dev && npm --prefix web ci --include=dev && npm --prefix web run build && npm --prefix server run build",
     "start": "npm --prefix server run start",
     "postinstall": "echo \"Usa 'npm run build' para preparar servidor e interfaz\""
   }
