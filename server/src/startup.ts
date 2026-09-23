@@ -59,9 +59,35 @@ export function runMigrations(): void {
     console.log(output.trim());
     console.log('Migraciones al día.');
   } catch (error) {
+    // Prisma escribe el detalle del fallo en stderr y solo el encabezado en stdout:
+    // hay que imprimir ambos o el motivo real se pierde.
     const err = error as { stdout?: string; stderr?: string; message?: string };
-    console.error('No se pudieron aplicar las migraciones:');
-    console.error(err.stdout?.trim() || err.stderr?.trim() || err.message);
+    console.error('No se pudieron aplicar las migraciones.');
+    if (err.stdout?.trim()) console.error(`[salida]\n${err.stdout.trim()}`);
+    if (err.stderr?.trim()) console.error(`[error]\n${err.stderr.trim()}`);
+    if (!err.stdout?.trim() && !err.stderr?.trim()) console.error(err.message);
+
+    // Pistas para los fallos que más se repiten, para no tener que interpretar
+    // el código de error de Prisma a mano.
+    const detail = `${err.stdout ?? ''}${err.stderr ?? ''}`;
+    if (detail.includes('P3009')) {
+      console.error(
+        '\nPista: hay una migración marcada como fallida de un intento anterior.\n' +
+          'Con la base de datos aún vacía, lo más limpio es borrarla y crearla de nuevo\n' +
+          'desde Railway, o ejecutar: prisma migrate resolve --rolled-back 0_init',
+      );
+    } else if (detail.includes('already exists')) {
+      console.error(
+        '\nPista: las tablas ya existen pero no constan como migradas.\n' +
+          'Ejecuta: prisma migrate resolve --applied 0_init',
+      );
+    } else if (detail.includes('P1001') || detail.includes("Can't reach database")) {
+      console.error(
+        '\nPista: no hay conexión con la base de datos. Revisa que DATABASE_URL\n' +
+          'apunte al host interno (postgres.railway.internal) y que el servicio esté activo.',
+      );
+    }
+
     throw new Error('Migraciones fallidas');
   }
 }
